@@ -1,0 +1,6 @@
+# Normalize line endings to LF in the repository
+* text=auto eol=lf
+
+# Windows runner files use CRLF
+*.rc text eol=crlf
+*.manifest text eol=crlf
