@@ -5,7 +5,9 @@ import 'document_list_screen.dart';
 enum _PinMode { loading, set, confirm, verify }
 
 class PinScreen extends StatefulWidget {
-  const PinScreen({super.key});
+  final bool changePinMode;
+
+  const PinScreen({super.key, this.changePinMode = false});
 
   @override
   State<PinScreen> createState() => _PinScreenState();
@@ -46,6 +48,10 @@ class _PinScreenState extends State<PinScreen>
   }
 
   Future<void> _checkStoredPin() async {
+    if (widget.changePinMode) {
+      setState(() => _mode = _PinMode.verify);
+      return;
+    }
     final has = await PinService.hasPin();
     if (!mounted) return;
     setState(() => _mode = has ? _PinMode.verify : _PinMode.set);
@@ -82,7 +88,11 @@ class _PinScreenState extends State<PinScreen>
         if (_entered == _pendingPin) {
           await PinService.setPin(_entered);
           if (!mounted) return;
-          _goToVault();
+          if (widget.changePinMode) {
+            Navigator.of(context).pop();
+          } else {
+            _goToVault();
+          }
         } else {
           await _shakeController.forward(from: 0);
           if (!mounted) return;
@@ -98,7 +108,15 @@ class _PinScreenState extends State<PinScreen>
         final ok = await PinService.verifyPin(_entered);
         if (!mounted) return;
         if (ok) {
-          _goToVault();
+          if (widget.changePinMode) {
+            setState(() {
+              _entered = '';
+              _errorText = '';
+              _mode = _PinMode.set;
+            });
+          } else {
+            _goToVault();
+          }
         } else {
           await _shakeController.forward(from: 0);
           if (!mounted) return;
@@ -124,17 +142,23 @@ class _PinScreenState extends State<PinScreen>
       case _PinMode.loading:
         return '';
       case _PinMode.set:
-        return 'Choose a 4-digit PIN';
+        return widget.changePinMode
+            ? 'Enter your new 4-digit PIN'
+            : 'Choose a 4-digit PIN';
       case _PinMode.confirm:
         return 'Re-enter your PIN to confirm';
       case _PinMode.verify:
-        return 'Enter your PIN to unlock';
+        return widget.changePinMode
+            ? 'Enter your current PIN to continue'
+            : 'Enter your PIN to unlock';
     }
   }
 
   String get _stepLabel {
-    if (_mode == _PinMode.confirm) return 'Step 2 of 2';
-    if (_mode == _PinMode.set) return 'Step 1 of 2';
+    if (!widget.changePinMode) {
+      if (_mode == _PinMode.confirm) return 'Step 2 of 2';
+      if (_mode == _PinMode.set) return 'Step 1 of 2';
+    }
     return '';
   }
 
@@ -149,6 +173,15 @@ class _PinScreenState extends State<PinScreen>
     }
 
     return Scaffold(
+      appBar: widget.changePinMode
+          ? AppBar(
+              title: const Text('Change PIN'),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            )
+          : null,
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(

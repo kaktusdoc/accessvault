@@ -1,27 +1,26 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PinService {
-  static const _storage = FlutterSecureStorage(
-    wOptions: WindowsOptions(),
-  );
   static const _pinKey = 'accessvault_pin';
 
   static Future<bool> hasPin() async {
-    final value = await _storage.read(key: _pinKey);
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getString(_pinKey);
     return value != null && value.isNotEmpty;
   }
 
   static Future<void> setPin(String pin) async {
-    await _storage.write(key: _pinKey, value: pin);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_pinKey, pin);
   }
 
   static Future<bool> verifyPin(String pin) async {
-    final stored = await _storage.read(key: _pinKey);
-    return stored == pin;
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_pinKey) == pin;
   }
 
-  /// Clears the stored PIN (e.g. for a reset flow).
   static Future<void> clearPin() async {
-    await _storage.delete(key: _pinKey);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_pinKey);
   }
 }

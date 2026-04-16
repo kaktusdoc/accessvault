@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/document.dart';
 import '../widgets/document_tile.dart';
+import 'settings_screen.dart';
 
 class DocumentListScreen extends StatefulWidget {
   const DocumentListScreen({super.key});
@@ -55,7 +56,9 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
             icon: const Icon(Icons.settings_rounded),
             tooltip: 'Settings',
             onPressed: () {
-              // TODO: navigate to settings
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
             },
           ),
           const SizedBox(width: 4),
