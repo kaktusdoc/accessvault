@@ -1,5 +1,7 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../models/document.dart';
+import '../services/document_service.dart';
 import '../widgets/document_tile.dart';
 import 'settings_screen.dart';
 
@@ -11,24 +13,80 @@ class DocumentListScreen extends StatefulWidget {
 }
 
 class _DocumentListScreenState extends State<DocumentListScreen> {
+  List<Document> _documents = [];
+  bool _loading = true;
   bool _refreshing = false;
+  bool _importing = false;
 
-  // Placeholder documents — replace with real data later
-  final List<Document> _documents = [
-    Document(name: 'Passport Scan', type: DocumentType.image, date: DateTime.now()),
-    Document(name: 'Tax Return 2024', type: DocumentType.pdf, date: DateTime.now().subtract(const Duration(days: 2))),
-    Document(name: 'Employment Contract', type: DocumentType.word, date: DateTime.now().subtract(const Duration(days: 5))),
-    Document(name: 'Bank Statements Q1', type: DocumentType.spreadsheet, date: DateTime.now().subtract(const Duration(days: 10))),
-    Document(name: 'Insurance Policy', type: DocumentType.pdf, date: DateTime.now().subtract(const Duration(days: 14))),
-    Document(name: 'Medical Records', type: DocumentType.generic, date: DateTime.now().subtract(const Duration(days: 20))),
-    Document(name: 'Property Deed', type: DocumentType.pdf, date: DateTime.now().subtract(const Duration(days: 30))),
-    Document(name: 'Driver License Photo', type: DocumentType.image, date: DateTime.now().subtract(const Duration(days: 45))),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final docs = await DocumentService.loadAll();
+    if (!mounted) return;
+    setState(() {
+      _documents = docs;
+      _loading = false;
+      _refreshing = false;
+    });
+  }
 
   Future<void> _onRefresh() async {
     setState(() => _refreshing = true);
-    await Future.delayed(const Duration(milliseconds: 800));
-    setState(() => _refreshing = false);
+    await _load();
+  }
+
+  Future<void> _importDocument() async {
+    setState(() => _importing = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: [
+          'pdf',
+          'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp',
+          'txt', 'doc', 'docx', 'rtf',
+          'xls', 'xlsx', 'csv',
+        ],
+        allowMultiple: false,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final sourcePath = result.files.single.path;
+      if (sourcePath == null) return;
+
+      final doc = await DocumentService.importFile(sourcePath);
+      if (!mounted) return;
+      setState(() => _documents = [..._documents, doc]);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"${doc.name}" added to vault'),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Import failed: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFFB71C1C),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _importing = false);
+    }
+  }
+
+  Future<void> _deleteDocument(Document doc) async {
+    await DocumentService.delete(doc);
+    if (!mounted) return;
+    setState(() => _documents = _documents.where((d) => d.id != doc.id).toList());
   }
 
   @override
@@ -64,40 +122,94 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
           const SizedBox(width: 4),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Text(
+                    '${_documents.length} document${_documents.length == 1 ? '' : 's'}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[500],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: _documents.isEmpty
+                      ? _EmptyState(onImport: _importDocument)
+                      : RefreshIndicator(
+                          onRefresh: _onRefresh,
+                          child: ListView.separated(
+                            itemCount: _documents.length,
+                            separatorBuilder: (_, _) =>
+                                const Divider(height: 1, indent: 76),
+                            itemBuilder: (context, index) {
+                              final doc = _documents[index];
+                              return DocumentTile(
+                                key: ValueKey(doc.id),
+                                document: doc,
+                                onDelete: () => _deleteDocument(doc),
+                              );
+                            },
+                          ),
+                        ),
+                ),
+              ],
+            ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _importing ? null : _importDocument,
+        tooltip: 'Import document',
+        child: _importing
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(Icons.add_rounded),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  final VoidCallback onImport;
+  const _EmptyState({required this.onImport});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(
-              '${_documents.length} documents',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[500],
+          Icon(Icons.folder_open_rounded, size: 64, color: Colors.grey[700]),
+          const SizedBox(height: 16),
+          Text(
+            'No documents yet',
+            style: TextStyle(
+                fontSize: 17,
                 fontWeight: FontWeight.w500,
-              ),
-            ),
+                color: Colors.grey[500]),
           ),
-          const Divider(height: 1),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: _onRefresh,
-              child: ListView.separated(
-                itemCount: _documents.length,
-                separatorBuilder: (_, __) => const Divider(height: 1, indent: 76),
-                itemBuilder: (context, index) =>
-                    DocumentTile(document: _documents[index]),
-              ),
-            ),
+          const SizedBox(height: 8),
+          Text(
+            'Tap + to import your first file',
+            style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+          ),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: onImport,
+            icon: const Icon(Icons.upload_file_rounded),
+            label: const Text('Import document'),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: add document
-        },
-        tooltip: 'Add document',
-        child: const Icon(Icons.add_rounded),
       ),
     );
   }

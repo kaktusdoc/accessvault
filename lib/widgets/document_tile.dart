@@ -3,8 +3,13 @@ import '../models/document.dart';
 
 class DocumentTile extends StatelessWidget {
   final Document document;
+  final VoidCallback onDelete;
 
-  const DocumentTile({super.key, required this.document});
+  const DocumentTile({
+    super.key,
+    required this.document,
+    required this.onDelete,
+  });
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
@@ -18,29 +23,65 @@ class DocumentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final type = document.type;
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: type.color.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(10),
+    return Dismissible(
+      key: ValueKey(document.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        color: const Color(0xFFB71C1C),
+        child: const Icon(Icons.delete_rounded, color: Colors.white, size: 26),
+      ),
+      confirmDismiss: (_) async {
+        return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Delete document?'),
+            content: Text(
+              '"${document.name}" will be removed from the vault.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFB71C1C)),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        );
+      },
+      onDismissed: (_) => onDelete(),
+      child: ListTile(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: type.color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(type.icon, color: type.color, size: 24),
         ),
-        child: Icon(type.icon, color: type.color, size: 24),
+        title: Text(
+          document.name,
+          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+          '${type.label} • ${_formatDate(document.dateAdded)}',
+          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+        ),
+        trailing:
+            Icon(Icons.chevron_right, color: Colors.grey[600], size: 20),
+        onTap: () {},
       ),
-      title: Text(
-        document.name,
-        style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(
-        '${type.label} • ${_formatDate(document.date)}',
-        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-      ),
-      trailing: Icon(Icons.chevron_right, color: Colors.grey[600], size: 20),
-      onTap: () {},
     );
   }
 }

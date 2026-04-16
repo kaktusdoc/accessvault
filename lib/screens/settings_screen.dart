@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/secure_storage_service.dart';
-import '../services/pin_service.dart';
 import 'pin_screen.dart';
 
 class SettingsScreen extends StatefulWidget {

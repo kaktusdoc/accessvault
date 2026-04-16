@@ -2,12 +2,69 @@ import 'package:flutter/material.dart';
 
 enum DocumentType { pdf, image, word, spreadsheet, generic }
 
-class Document {
-  final String name;
-  final DocumentType type;
-  final DateTime date;
+DocumentType documentTypeFromExtension(String ext) {
+  switch (ext.toLowerCase()) {
+    case 'pdf':
+      return DocumentType.pdf;
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif':
+    case 'webp':
+    case 'bmp':
+      return DocumentType.image;
+    case 'doc':
+    case 'docx':
+    case 'txt':
+    case 'rtf':
+      return DocumentType.word;
+    case 'xls':
+    case 'xlsx':
+    case 'csv':
+      return DocumentType.spreadsheet;
+    default:
+      return DocumentType.generic;
+  }
+}
 
-  const Document({required this.name, required this.type, required this.date});
+class Document {
+  final String id;
+  final String name;
+  final String localPath;
+  final DocumentType type;
+  final DateTime dateAdded;
+
+  const Document({
+    required this.id,
+    required this.name,
+    required this.localPath,
+    required this.type,
+    required this.dateAdded,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'localPath': localPath,
+        'type': type.name,
+        'dateAdded': dateAdded.toIso8601String(),
+      };
+
+  factory Document.fromJson(Map<String, dynamic> json) => Document(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        localPath: json['localPath'] as String,
+        type: DocumentType.values.byName(json['type'] as String),
+        dateAdded: DateTime.parse(json['dateAdded'] as String),
+      );
+
+  static Document? tryFromJson(Map<String, dynamic> json) {
+    try {
+      return Document.fromJson(json);
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 extension DocumentTypeDisplay on DocumentType {
