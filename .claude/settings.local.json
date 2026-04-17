@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Allow all tools for this workspace"
+      "Allow all tools for this workspace",
+      "Bash(flutter pub *)",
+      "Bash(flutter build *)"
     ]
   }
 }
