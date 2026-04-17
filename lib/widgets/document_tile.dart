@@ -5,11 +5,13 @@ import '../models/document.dart';
 class DocumentTile extends StatefulWidget {
   final Document document;
   final VoidCallback onDelete;
+  final VoidCallback? onTap;
 
   const DocumentTile({
     super.key,
     required this.document,
     required this.onDelete,
+    this.onTap,
   });
 
   @override
@@ -121,7 +123,7 @@ class _DocumentTileState extends State<DocumentTile> {
                     ),
             )
           : Icon(Icons.chevron_right, color: Colors.grey[600], size: 20),
-      onTap: () {},
+      onTap: widget.onTap,
     );
   }
 

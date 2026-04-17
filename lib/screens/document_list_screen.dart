@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/document.dart';
 import '../services/document_service.dart';
 import '../widgets/document_tile.dart';
+import 'document_detail_screen.dart';
 import 'settings_screen.dart';
 
 class DocumentListScreen extends StatefulWidget {
@@ -83,6 +84,16 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
     }
   }
 
+  Future<void> _openDetail(Document doc) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DocumentDetailScreen(document: doc),
+      ),
+    );
+    // Reload in case the user renamed the document
+    _load();
+  }
+
   Future<void> _deleteDocument(Document doc) async {
     await DocumentService.delete(doc);
     if (!mounted) return;
@@ -153,6 +164,7 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
                               return DocumentTile(
                                 key: ValueKey(doc.id),
                                 document: doc,
+                                onTap: () => _openDetail(doc),
                                 onDelete: () => _deleteDocument(doc),
                               );
                             },

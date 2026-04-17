@@ -68,6 +68,14 @@ class DocumentService {
     return doc;
   }
 
+  static Future<Document> rename(Document doc, String newName) async {
+    final updated = doc.copyWith(name: newName);
+    final existing = await loadAll();
+    final updated2 = existing.map((d) => d.id == doc.id ? updated : d).toList();
+    await _saveAll(updated2);
+    return updated;
+  }
+
   static Future<void> delete(Document doc) async {
     final file = File(doc.localPath);
     if (await file.exists()) {

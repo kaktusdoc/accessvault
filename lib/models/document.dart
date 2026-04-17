@@ -50,6 +50,14 @@ class Document {
         'dateAdded': dateAdded.toIso8601String(),
       };
 
+  Document copyWith({String? name, String? localPath}) => Document(
+        id: id,
+        name: name ?? this.name,
+        localPath: localPath ?? this.localPath,
+        type: type,
+        dateAdded: dateAdded,
+      );
+
   factory Document.fromJson(Map<String, dynamic> json) => Document(
         id: json['id'] as String,
         name: json['name'] as String,
