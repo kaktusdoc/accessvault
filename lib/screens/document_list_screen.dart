@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../models/document.dart';
 import '../services/document_service.dart';
+import '../services/sync_service.dart';
 import '../widgets/document_tile.dart';
 import 'document_detail_screen.dart';
 import 'settings_screen.dart';
@@ -37,7 +38,38 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
 
   Future<void> _onRefresh() async {
     setState(() => _refreshing = true);
-    await _load();
+    try {
+      final result = await SyncService.sync();
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.summary),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } on SyncException catch (e) {
+      if (!mounted) return;
+      setState(() => _refreshing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFFB71C1C),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _refreshing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Sync failed: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFFB71C1C),
+        ),
+      );
+    }
   }
 
   Future<void> _importDocument() async {

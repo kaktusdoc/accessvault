@@ -68,6 +68,32 @@ class DocumentService {
     return doc;
   }
 
+  /// Writes [bytes] to the vault directory under [filename] and persists
+  /// metadata, for files pulled down from the sync server.
+  static Future<Document> saveDownloadedFile(
+      String filename, List<int> bytes) async {
+    final dir = await _vaultDir();
+    final ext = p.extension(filename).replaceFirst('.', '');
+    final type = documentTypeFromExtension(ext);
+
+    final destName = '${DateTime.now().millisecondsSinceEpoch}_$filename';
+    final destPath = p.join(dir.path, destName);
+
+    await File(destPath).writeAsBytes(bytes);
+
+    final doc = Document(
+      id: destName,
+      name: filename,
+      localPath: destPath,
+      type: type,
+      dateAdded: DateTime.now(),
+    );
+
+    final existing = await loadAll();
+    await _saveAll([...existing, doc]);
+    return doc;
+  }
+
   static Future<Document> rename(Document doc, String newName) async {
     final updated = doc.copyWith(name: newName);
     final existing = await loadAll();
