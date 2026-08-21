@@ -47,7 +47,7 @@ class SyncService {
       final localDocs = await DocumentService.loadAll();
       final localNames = localDocs.map((d) => d.name).toSet();
 
-      final response = await dio.get('/docs');
+      final response = await dio.get('/documents');
       final serverDocs = _parseDocList(response.data);
       final serverNames = serverDocs.map((d) => d['filename'] as String).toSet();
 
@@ -55,7 +55,7 @@ class SyncService {
       for (final doc in localDocs) {
         if (serverNames.contains(doc.name)) continue;
         await dio.post(
-          '/docs/upload',
+          '/documents/upload',
           data: FormData.fromMap({
             'file': await MultipartFile.fromFile(
               doc.localPath,
@@ -72,7 +72,7 @@ class SyncService {
         if (localNames.contains(filename)) continue;
         final id = sdoc['id'];
         final fileResponse = await dio.get<List<int>>(
-          '/docs/$id',
+          '/documents/$id',
           options: Options(responseType: ResponseType.bytes),
         );
         await DocumentService.saveDownloadedFile(
