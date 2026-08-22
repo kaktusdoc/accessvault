@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'crypto_service.dart';
 import 'document_service.dart';
 import 'secure_storage_service.dart';
 
@@ -54,13 +55,12 @@ class SyncService {
       var uploaded = 0;
       for (final doc in localDocs) {
         if (serverNames.contains(doc.name)) continue;
+        // Local files are encrypted at rest; the server expects plaintext.
+        final plainBytes = await DocumentService.decryptDocument(doc);
         await dio.post(
           '/documents/upload',
           data: FormData.fromMap({
-            'file': await MultipartFile.fromFile(
-              doc.localPath,
-              filename: doc.name,
-            ),
+            'file': MultipartFile.fromBytes(plainBytes, filename: doc.name),
           }),
         );
         uploaded++;
@@ -85,6 +85,8 @@ class SyncService {
       return SyncResult(uploaded: uploaded, downloaded: downloaded);
     } on DioException catch (e) {
       throw SyncException(_friendlyMessage(e));
+    } on CryptoException catch (e) {
+      throw SyncException(e.message);
     }
   }
 

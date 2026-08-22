@@ -1,7 +1,24 @@
 import 'package:flutter/material.dart';
 import 'screens/pin_screen.dart';
+import 'services/document_service.dart';
 
-void main() {
+// Kept alive for the app's lifetime so it isn't garbage-collected.
+// ignore: unused_element
+late final AppLifecycleListener _lifecycleListener;
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Sweep up any plaintext temp files left behind by a prior session that
+  // didn't get to close cleanly.
+  await DocumentService.clearTempFiles();
+  _lifecycleListener = AppLifecycleListener(
+    onStateChange: (state) {
+      if (state == AppLifecycleState.paused ||
+          state == AppLifecycleState.detached) {
+        DocumentService.clearTempFiles();
+      }
+    },
+  );
   runApp(const AccessVaultApp());
 }
 

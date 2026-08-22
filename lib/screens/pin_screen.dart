@@ -18,7 +18,9 @@ class _PinScreenState extends State<PinScreen>
   _PinMode _mode = _PinMode.loading;
   String _entered = '';
   String _pendingPin = '';
+  String _oldPin = '';
   String _errorText = '';
+  bool _processing = false;
 
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
@@ -86,11 +88,29 @@ class _PinScreenState extends State<PinScreen>
 
       case _PinMode.confirm:
         if (_entered == _pendingPin) {
-          await PinService.setPin(_entered);
-          if (!mounted) return;
           if (widget.changePinMode) {
-            Navigator.of(context).pop();
+            setState(() => _processing = true);
+            try {
+              await PinService.changePin(_oldPin, _entered);
+              if (!mounted) return;
+              Navigator.of(context).pop();
+            } catch (e) {
+              if (!mounted) return;
+              await _shakeController.forward(from: 0);
+              if (!mounted) return;
+              setState(() {
+                _entered = '';
+                _pendingPin = '';
+                _oldPin = '';
+                _errorText = 'Could not change PIN: $e';
+                _mode = _PinMode.verify;
+              });
+            } finally {
+              if (mounted) setState(() => _processing = false);
+            }
           } else {
+            await PinService.setPin(_entered);
+            if (!mounted) return;
             _goToVault();
           }
         } else {
@@ -110,6 +130,7 @@ class _PinScreenState extends State<PinScreen>
         if (ok) {
           if (widget.changePinMode) {
             setState(() {
+              _oldPin = _entered;
               _entered = '';
               _errorText = '';
               _mode = _PinMode.set;
@@ -178,7 +199,8 @@ class _PinScreenState extends State<PinScreen>
               title: const Text('Change PIN'),
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed:
+                    _processing ? null : () => Navigator.of(context).pop(),
               ),
             )
           : null,
@@ -222,6 +244,29 @@ class _PinScreenState extends State<PinScreen>
                     style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                   ),
                 ],
+                if (_mode == _PinMode.set) ...[
+                  const SizedBox(height: 14),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.warning_amber_rounded,
+                            size: 15, color: Colors.grey[600]),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Your PIN cannot be recovered — losing it means '
+                            'losing access to your documents.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 36),
                 AnimatedBuilder(
                   animation: _shakeAnimation,
@@ -246,22 +291,35 @@ class _PinScreenState extends State<PinScreen>
                       : const SizedBox(height: 18, key: ValueKey('empty')),
                 ),
                 const SizedBox(height: 24),
-                _NumPad(onKey: _onKey, onDelete: _onDelete),
-                // Allow going back from confirm to set
-                if (_mode == _PinMode.confirm) ...[
-                  const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: () => setState(() {
-                      _mode = _PinMode.set;
-                      _entered = '';
-                      _pendingPin = '';
-                      _errorText = '';
-                    }),
-                    child: Text(
-                      'Start over',
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                    ),
+                if (_processing) ...[
+                  const SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
                   ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Re-encrypting documents…',
+                    style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                  ),
+                ] else ...[
+                  _NumPad(onKey: _onKey, onDelete: _onDelete),
+                  // Allow going back from confirm to set
+                  if (_mode == _PinMode.confirm) ...[
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: () => setState(() {
+                        _mode = _PinMode.set;
+                        _entered = '';
+                        _pendingPin = '';
+                        _errorText = '';
+                      }),
+                      child: Text(
+                        'Start over',
+                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                      ),
+                    ),
+                  ],
                 ],
               ],
             ),

@@ -52,8 +52,10 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
 
   Future<void> _openFile() async {
     setState(() => _opening = true);
+    File? tempFile;
     try {
-      final result = await OpenFile.open(_doc.localPath);
+      tempFile = await DocumentService.decryptToTempFile(_doc);
+      final result = await OpenFile.open(tempFile.path);
       if (!mounted) return;
       if (result.type != ResultType.done) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -64,8 +66,27 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
           ),
         );
       }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open file: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFFB71C1C),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _opening = false);
+      // Best-effort: some viewers still hold the file open when we get
+      // here, especially on Windows. Leftovers are swept up on next launch
+      // by DocumentService.clearTempFiles().
+      if (tempFile != null) {
+        try {
+          await tempFile.delete();
+        } catch (e) {
+          debugPrint('Could not delete temp file: $e');
+        }
+      }
     }
   }
 
